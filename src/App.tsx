@@ -24,7 +24,7 @@ const COL = {
   DELIVERY_TERM:    11,
   QTY_ORDER:        12,
   QTY_DELIVERED:    18,
-  UNDELIVERED:      20,
+  UNDELIVERED:      20, 
   DELIVERY_STATUS:  33,  // Delivered / Undelivered / Incomplete Delivery
   DELIVERY_TIME:    35,  // Late / Early/On-Time / Overdue / Cancelled
   TOTAL_AMOUNT:     36,
@@ -354,13 +354,13 @@ export default function ExecutiveDashboard() {
 
       {/* ── Header ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <img
             src={zcmcLogo}
             alt="ZCMC"
             style={{ width: 44, height: 44, objectFit: "contain" }}
           />
-          <div>
+          <div style={{ textAlign: "left", lineHeight: "1.2" }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0f172a" }}>
               Procurement Executive Dashboard
             </h1>
@@ -553,8 +553,8 @@ export default function ExecutiveDashboard() {
                       <tr key={i} style={{ background: i % 2 === 0 ? "#fafafa" : "#fff", borderBottom: "1px solid #f1f5f9" }}>
                         <td style={{ padding: "8px 12px", whiteSpace: "nowrap", color: "#64748b" }}>{row[COL.SOURCE_TAB]}</td>
                         <td style={{ padding: "8px 12px", whiteSpace: "nowrap", color: "#64748b" }}>{row[COL.PO_NUMBER]}</td>
-                        <td style={{ padding: "8px 12px", whiteSpace: "nowrap", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row[COL.SUPPLIER]}</td>
-                        <td style={{ padding: "8px 12px", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row[COL.ITEM_DESCRIPTION]}</td>
+                        <td style={{ padding: "8px 12px", whiteSpace: "nowrap", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>{row[COL.SUPPLIER]}</td>
+                        <td style={{ padding: "8px 12px", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left"}}>{row[COL.ITEM_DESCRIPTION]}</td>
                         <td style={{ padding: "8px 12px", whiteSpace: "nowrap", color: "#64748b" }}>{row[COL.CATEGORY] || "—"}</td>
                         <td style={{ padding: "8px 12px", whiteSpace: "nowrap", textAlign: "right" }}>{money(row[COL.PRICE])}</td>
                         <td style={{ padding: "8px 12px", whiteSpace: "nowrap", textAlign: "right" }}>{num(row[COL.QTY_ORDER])}</td>
