@@ -135,7 +135,7 @@ function KPICard({ title, value, sub, color, icon = null, progress = null, statu
         >
           {title}
         </p>
-        {status && (
+        {/* {status && (
           <span
             style={{
               fontSize: 10,
@@ -151,11 +151,9 @@ function KPICard({ title, value, sub, color, icon = null, progress = null, statu
           >
             {status}
           </span>
-        )}
+        )} */}
       </div>
-      <p style={{ margin: "10px 0 4px", fontSize: 30, fontWeight: 800, lineHeight: 1 }}>
-        {value}
-      </p>
+      <p style={{ margin: "10px 0 4px", fontSize: 30, fontWeight: 800, lineHeight: 1 }}>{value}</p>
       {sub && <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>{sub}</p>}
       {progress !== null && (
         <div
@@ -783,12 +781,20 @@ export default function ExecutiveDashboard() {
                   value={fmt(totalAmount, "₱")}
                   sub={`Across ${totalItems.toLocaleString()} PO line items`}
                   color={COLORS.info}
-                  status={totalAmount >= 1_000_000 ? "High Value" : totalAmount >= 100_000 ? "Mid Value" : "Low Value"}
+                  // status={
+                  //   totalAmount >= 1_000_000
+                  //     ? "High Value"
+                  //     : totalAmount >= 100_000
+                  //       ? "Mid Value"
+                  //       : "Low Value"
+                  // }
                 />
                 <KPICard
                   title="Delivery Rate"
                   value={
-                    <span style={{ color: Number(deliveryRate) > 50 ? COLORS.success : COLORS.danger }}>
+                    <span
+                      style={{ color: Number(deliveryRate) > 50 ? COLORS.success : COLORS.danger }}
+                    >
                       {deliveryRate}%
                     </span>
                   }
@@ -801,9 +807,9 @@ export default function ExecutiveDashboard() {
                   title="On-Time Rate"
                   value={`${onTimeRate}%`}
                   sub={`${onTimeCount.toLocaleString()} of ${totalItems.toLocaleString()} early or on time`}
-                  color={COLORS.teal}
+                  color={COLORS.warning}
                   progress={Number(onTimeRate)}
-                  status={rateStatus(onTimeRate)}
+                  // status={rateStatus(onTimeRate)}
                 />
               </div>
 
@@ -1047,7 +1053,7 @@ export default function ExecutiveDashboard() {
                 </div>
 
                 {/* Score bar chart */}
-                <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                {/* <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #f1f5f9" }}>
                   <p
                     style={{
                       margin: "0 0 10px",
@@ -1077,7 +1083,7 @@ export default function ExecutiveDashboard() {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                </div> */}
 
                 {/* Scorecard table */}
                 <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
@@ -1305,7 +1311,7 @@ export default function ExecutiveDashboard() {
                       letterSpacing: "0.05em",
                     }}
                   >
-                    Annual Procurement Report
+                    3-Year Procurement Report
                   </h3>
                   <p style={{ margin: "3px 0 0", fontSize: 12, color: "#94a3b8" }}>
                     {reportFrom} – {reportTo} &nbsp;·&nbsp; {reportRows.length.toLocaleString()}{" "}
@@ -1652,49 +1658,10 @@ export default function ExecutiveDashboard() {
                   </tbody>
                 </table>
               </div>
-
-              {/* Report Note */}
-              <div
-                style={{
-                  padding: "16px 20px",
-                  borderTop: "1px solid #f1f5f9",
-                  background: "#f8fafc",
-                }}
-              >
-                <p
-                  style={{
-                    margin: "0 0 8px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  Report Notes / Remarks
-                </p>
-                <textarea
-                  value={reportNote}
-                  onChange={(e) => setReportNote(e.target.value)}
-                  placeholder={`Add observations, highlights, or remarks for the ${reportFrom}–${reportTo} procurement period…`}
-                  rows={3}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 13,
-                    color: "#374151",
-                    background: "#fff",
-                    resize: "vertical",
-                    outline: "none",
-                    fontFamily: "inherit",
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
             </div>
           )}
+
+          <hr style={{ marginTop: 30 }} />
 
           {view === "dashboard" && (
             <>
@@ -1722,6 +1689,7 @@ export default function ExecutiveDashboard() {
                     Purchase Order Details
                   </h3>
                 </div>
+
                 <div style={{ overflowX: "auto", maxHeight: 400, overflowY: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
