@@ -122,7 +122,7 @@ function KPICard({
         <p style={{ margin: 0, fontSize: 12, color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{title}</p>
         <span style={{ fontSize: 20 }}>{icon}</span>
       </div>
-      <p style={{ margin: "10px 0 4px", fontSize: 30, fontWeight: 800, color: "#111827", lineHeight: 1 }}>{value}</p>
+      <p style={{ margin: "10px 0 4px", fontSize: 30, fontWeight: 800, color: "inherit", lineHeight: 1 }}>{value}</p>
       {sub && <p style={{ margin: 0, fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>{sub}</p>}
     </div>
   );
@@ -421,7 +421,16 @@ export default function ExecutiveDashboard() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
             <KPICard title="Total PO Items"    value={kpiNum(totalItems)}              sub="Line items in selection"              color={COLORS.primary} />
             <KPICard title="Total Amount"      value={kpiMoney(totalAmount)}           sub="Sum of all PO amounts"                color={COLORS.info} />
-            <KPICard title="Delivery Rate"     value={`${deliveryRate}%`}              sub={`${kpiNum(deliveredCount)} fully delivered`} color={COLORS.success}/>
+            <KPICard
+              title="Delivery Rate"
+              value={
+                <span style={{ color: Number(deliveryRate) > 50 ? COLORS.success : COLORS.danger }}>
+                  {deliveryRate}%
+                </span>
+              }
+              sub={`${kpiNum(deliveredCount)} fully delivered`}
+              color={Number(deliveryRate) > 50 ? COLORS.success : COLORS.danger}
+            />
             <KPICard title="On-Time Rate"      value={`${onTimeRate}%`}                sub={`${kpiNum(onTimeCount)} early or on time`}  color={COLORS.teal} />
           </div>
 
