@@ -558,7 +558,7 @@ export default function ExecutiveDashboard() {
       else if (status === "Incomplete Delivery") m.incomplete++;
       else if (status === "Undelivered") m.undelivered++;
       if (timing === "Early/On-Time") m.onTime++;
-      if (timing === "Late") m.lateCount++;
+      if (timing === "Late" || status === "Undelivered") m.lateCount++;
       if (isCancelled) m.cancelled++;
       m.totalAmt += Number(r[COL.TOTAL_AMOUNT]) || 0;
     });
@@ -862,7 +862,7 @@ export default function ExecutiveDashboard() {
       else if (status === "Incomplete Delivery") m.incomplete++;
       else if (status === "Undelivered") m.undelivered++;
       if (timing === "Early/On-Time") m.onTime++;
-      if (timing === "Late") m.lateCount++;
+      if (timing === "Late" || status === "Undelivered") m.lateCount++;
       if (isCancelled) m.cancelled++;
       m.totalAmt += Number(r[COL.TOTAL_AMOUNT]) || 0;
     });
