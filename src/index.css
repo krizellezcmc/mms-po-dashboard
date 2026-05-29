@@ -1,3 +1,9 @@
+*,
+*::before,
+*::after {
+  font-family: "Century Gothic", CenturyGothic, AppleGothic, sans-serif !important;
+}
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -10,9 +16,9 @@
   --social-bg: rgba(244, 243, 236, 0.5);
   --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: "Century Gothic", sans-serif;
-  --heading: "Century Gothic", sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --sans: "Century Gothic", sans-serif !important;
+  --heading: "Century Gothic", sans-serif !important;
+  /* --mono: ui-monospace, Consolas, monospace; */
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -54,7 +60,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  font-family: "Century Gothic", sans-serif;
+  font-family: "Century Gothic";
 }
 
 body {
