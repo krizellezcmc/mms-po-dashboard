@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Papa from "papaparse";
 import {
   BarChart,
@@ -207,6 +207,139 @@ function ChartCard({ title, children, height = 260 }) {
   );
 }
 
+function ActiveFilterPills({
+  year,
+  status,
+  supplier,
+  search,
+}: {
+  year: string;
+  status: string;
+  supplier: string;
+  search: string;
+}) {
+  const active = (
+    [
+      year !== "All" && { label: "Year", value: year },
+      status !== "All" && { label: "Status", value: status },
+      supplier && { label: "Supplier", value: supplier },
+      search && { label: "Search", value: `"${search}"` },
+    ] as (false | { label: string; value: string })[]
+  ).filter(Boolean) as { label: string; value: string }[];
+
+  if (active.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+      <span
+        style={{
+          fontSize: 11,
+          color: "#94a3b8",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+        }}
+      >
+        Filtered by:
+      </span>
+      {active.map(({ label, value }) => (
+        <span
+          key={label}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontSize: 12,
+            background: "#f0f4ff",
+            color: "#4f46e5",
+            border: "1px solid #c7d2fe",
+            borderRadius: 20,
+            padding: "2px 10px",
+            fontWeight: 600,
+          }}
+        >
+          <span style={{ color: "#94a3b8", fontWeight: 400 }}>{label}:</span> {value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function CategoryPivotTable({ rows, sortCol, sortDir, onSort }: { rows: any[]; sortCol: string; sortDir: "asc" | "desc"; onSort: (col: string) => void }) {
+  const cols: [string, string, "left" | "right"][] = [
+    ["name", "Category", "left"],
+    ["total", "Total Items", "right"],
+    ["delivered", "Delivered", "right"],
+    ["incomplete", "Incomplete", "right"],
+    ["undelivered", "Undelivered", "right"],
+    ["deliveryPct", "Delivery Rate", "right"],
+    ["onTimePct", "On-Time Rate", "right"],
+    ["lateCount", "Late", "right"],
+    ["cancelled", "Cancelled", "right"],
+    ["totalAmt", "Total Amount (₱)", "right"],
+  ];
+  const totals = rows.reduce(
+    (acc, r) => { acc.total += r.total; acc.delivered += r.delivered; acc.incomplete += r.incomplete; acc.undelivered += r.undelivered; acc.onTime += r.onTime; acc.lateCount += r.lateCount; acc.cancelled += r.cancelled; acc.totalAmt += r.totalAmt; return acc; },
+    { total: 0, delivered: 0, incomplete: 0, undelivered: 0, onTime: 0, lateCount: 0, cancelled: 0, totalAmt: 0 }
+  );
+  const tdp = totals.total > 0 ? +((totals.delivered / totals.total) * 100).toFixed(1) : 0;
+  const top = totals.total > 0 ? +((totals.onTime / totals.total) * 100).toFixed(1) : 0;
+  const badge = (pct: number, threshA = 80, threshB = 50) => {
+    const c = pct >= threshA ? "#10b981" : pct >= threshB ? "#f59e0b" : "#ef4444";
+    return { display: "inline-block" as const, padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: c + "22", color: c };
+  };
+  return (
+    <>
+      <div style={{ overflowX: "auto", maxHeight: 440, overflowY: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: "#1e293b", position: "sticky", top: 0 }}>
+              {cols.map(([col, label, align]) => (
+                <th key={col} onClick={() => onSort(col)} style={{ textAlign: align, padding: "10px 12px", borderBottom: "2px solid #334155", color: sortCol === col ? "#a5b4fc" : "#e2e8f0", fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}>
+                  {label} {sortCol === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.name} style={{ background: i % 2 === 0 ? "#fafafa" : "#fff", borderBottom: "1px solid #f1f5f9" }}>
+                <td style={{ padding: "9px 12px", fontWeight: 600, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right" }}>{r.total.toLocaleString()}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", color: "#10b981", fontWeight: 600 }}>{r.delivered.toLocaleString()}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", color: "#f59e0b", fontWeight: 600 }}>{r.incomplete || "—"}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", color: "#ef4444", fontWeight: 600 }}>{r.undelivered || "—"}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right" }}><span style={badge(r.deliveryPct)}>{r.deliveryPct}%</span></td>
+                <td style={{ padding: "9px 12px", textAlign: "right" }}><span style={badge(r.onTimePct, 50, 0)}>{r.onTimePct}%</span></td>
+                <td style={{ padding: "9px 12px", textAlign: "right", color: r.lateCount >= 6 ? "#ef4444" : r.lateCount >= 1 ? "#f59e0b" : "#10b981" }}>{r.lateCount || "—"}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", color: r.cancelled > 0 ? "#ef4444" : "#9ca3af" }}>{r.cancelled || "—"}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 600 }}>₱{r.totalAmt.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: "#f1f5f9", borderTop: "2px solid #e2e8f0" }}>
+              <td style={{ padding: "9px 12px", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em", color: "#0f172a" }}>Total</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700 }}>{totals.total.toLocaleString()}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: "#10b981" }}>{totals.delivered.toLocaleString()}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: "#f59e0b" }}>{totals.incomplete || "—"}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: "#ef4444" }}>{totals.undelivered || "—"}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right" }}><span style={{ ...badge(tdp), fontWeight: 700 }}>{tdp}%</span></td>
+              <td style={{ padding: "9px 12px", textAlign: "right" }}><span style={{ ...badge(top, 50, 0), fontWeight: 700 }}>{top}%</span></td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: totals.lateCount >= 6 ? "#ef4444" : totals.lateCount >= 1 ? "#f59e0b" : "#10b981" }}>{totals.lateCount || "—"}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: totals.cancelled > 0 ? "#ef4444" : "#9ca3af" }}>{totals.cancelled || "—"}</td>
+              <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700 }}>₱{totals.totalAmt.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div style={{ padding: "8px 16px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", fontSize: 12, color: "#64748b" }}>
+        Showing <strong>{rows.length}</strong> categor{rows.length !== 1 ? "ies" : "y"}
+      </div>
+    </>
+  );
+}
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -240,6 +373,12 @@ export default function ExecutiveDashboard() {
   const [yearFilter, setYearFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchText, setSearchText] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const supplierRef = useRef<HTMLDivElement>(null);
+  const [showScoreSuggestions, setShowScoreSuggestions] = useState(false);
+  const scoreSearchRef = useRef<HTMLDivElement>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -279,10 +418,32 @@ export default function ExecutiveDashboard() {
     return ["All", ...Array.from(s).sort()];
   }, [rawRows]);
 
+  const supplierList = useMemo(() => {
+    const s = new Set(rawRows.map((r) => r[COL.SUPPLIER]?.trim()).filter(Boolean));
+    return Array.from(s).sort();
+  }, [rawRows]);
+
+  const supplierSuggestions = useMemo(() => {
+    if (!supplierFilter) return supplierList;
+    const q = supplierFilter.toLowerCase();
+    return supplierList.filter((s) => s.toLowerCase().includes(q));
+  }, [supplierList, supplierFilter]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (supplierRef.current && !supplierRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const filtered = useMemo(() => {
     return rawRows.filter((r) => {
       if (yearFilter !== "All" && parseYear(r[COL.SOURCE_TAB]) !== yearFilter) return false;
       if (statusFilter !== "All" && r[COL.DELIVERY_STATUS] !== statusFilter) return false;
+      if (supplierFilter && r[COL.SUPPLIER]?.trim() !== supplierFilter) return false;
       if (searchText) {
         const q = searchText.toLowerCase();
         if (
@@ -294,7 +455,7 @@ export default function ExecutiveDashboard() {
       }
       return true;
     });
-  }, [rawRows, yearFilter, statusFilter, searchText]);
+  }, [rawRows, yearFilter, statusFilter, supplierFilter, searchText]);
 
   // KPIs
   const totalItems = filtered.length;
@@ -370,9 +531,9 @@ export default function ExecutiveDashboard() {
   }, [filtered]);
 
   // ── Supplier Scorecard ─────────────────────────────────
-  // Scoring weights: Delivery 40% | On-Time 30% | No-Cancel 20% | Low Delay 10%
+  // Score = Cancellations (20pts) + Late Deliveries (10pts), normalized to 100
   const supplierScores = useMemo(() => {
-    const map = {};
+    const map: Record<string, any> = {};
     filtered.forEach((r) => {
       const sup = r[COL.SUPPLIER]?.trim();
       if (!sup) return;
@@ -385,59 +546,51 @@ export default function ExecutiveDashboard() {
           undelivered: 0,
           onTime: 0,
           cancelled: 0,
+          lateCount: 0,
           totalAmt: 0,
-          totalDays: 0,
-          delayCount: 0,
         };
       const m = map[sup];
       m.total++;
       const status = r[COL.DELIVERY_STATUS] || "";
       const timing = r[COL.DELIVERY_TIME] || "";
       const isCancelled = r[COL.SUPPLIER_CANCELLED] === "TRUE" || r[COL.CANCELLATION] === "TRUE";
-      const days = Number(r[COL.DAYS]) || 0;
       if (status === "Delivered") m.delivered++;
       else if (status === "Incomplete Delivery") m.incomplete++;
       else if (status === "Undelivered") m.undelivered++;
       if (timing === "Early/On-Time") m.onTime++;
+      if (timing === "Late") m.lateCount++;
       if (isCancelled) m.cancelled++;
       m.totalAmt += Number(r[COL.TOTAL_AMOUNT]) || 0;
-      if (days > 0) {
-        m.totalDays += days;
-        m.delayCount++;
-      }
     });
 
-    // Compute score
     return Object.values(map)
       .map((m) => {
+        // Cancellations: 0→20, 1-5→15, 6-10→10, 11-15→5, ≥16→0
+        const cancelPts =
+          m.cancelled === 0 ? 20 :
+          m.cancelled <= 5 ? 15 :
+          m.cancelled <= 10 ? 10 :
+          m.cancelled <= 15 ? 5 : 0;
+        // Late Deliveries: 0→10, 1-5→5, ≥6→0
+        const latePts =
+          m.lateCount === 0 ? 10 :
+          m.lateCount <= 5 ? 5 : 0;
+        const rawScore = cancelPts + latePts; // max 30
+        const score = Math.round((rawScore / 30) * 100);
         const deliveryRate = m.delivered / m.total;
         const onTimeRate = m.onTime / m.total;
-        const cancelRate = m.cancelled / m.total;
-        const avgDelay = m.delayCount > 0 ? m.totalDays / m.delayCount : 0;
-        // Delay penalty: 0 days = 10pts, 100+ days = 0pts
-        const delayScore = Math.max(0, 1 - avgDelay / 100);
-        const score = Math.round(
-          deliveryRate * 40 + onTimeRate * 30 + (1 - cancelRate) * 20 + delayScore * 10
-        );
         let grade, gradeColor;
-        if (score >= 80) {
-          grade = "A";
-          gradeColor = COLORS.success;
-        } else if (score >= 60) {
-          grade = "B";
-          gradeColor = COLORS.teal;
-        } else if (score >= 40) {
-          grade = "C";
-          gradeColor = COLORS.warning;
-        } else {
-          grade = "D";
-          gradeColor = COLORS.danger;
-        }
+        if (score >= 90) { grade = "Excellent"; gradeColor = COLORS.success; }
+        else if (score >= 80) { grade = "Very Satisfactory"; gradeColor = COLORS.teal; }
+        else if (score >= 70) { grade = "Satisfactory"; gradeColor = COLORS.info; }
+        else if (score >= 60) { grade = "Unsatisfactory"; gradeColor = COLORS.warning; }
+        else { grade = "Poor"; gradeColor = COLORS.danger; }
         return {
           ...m,
           deliveryPct: +(deliveryRate * 100).toFixed(1),
           onTimePct: +(onTimeRate * 100).toFixed(1),
-          avgDelay: Math.round(avgDelay),
+          cancelPts,
+          latePts,
           score,
           grade,
           gradeColor,
@@ -449,12 +602,26 @@ export default function ExecutiveDashboard() {
   const [scoreSort, setScoreSort] = useState("score");
   const [scoreSortDir, setScoreSortDir] = useState("desc");
   const [scoreSearch, setScoreSearch] = useState("");
+  const [scoreSearchDraft, setScoreSearchDraft] = useState("");
   const [view, setView] = useState<"dashboard" | "report">("dashboard");
+  const [showRubric, setShowRubric] = useState(false);
+  const [showReportRubric, setShowReportRubric] = useState(false);
 
   const REPORT_CURRENT_YEAR = new Date().getFullYear();
   const [reportFrom, setReportFrom] = useState(String(REPORT_CURRENT_YEAR - 3));
   const [reportTo, setReportTo] = useState(String(REPORT_CURRENT_YEAR - 1));
   const [reportNote, setReportNote] = useState("");
+
+  // Auto-set report range to actual available years once data loads
+  useEffect(() => {
+    const dataYears = Array.from(
+      new Set(rawRows.map((r) => parseYear(r[COL.SOURCE_TAB])).filter(Boolean))
+    ).sort();
+    if (dataYears.length > 0) {
+      setReportFrom(dataYears[0]);
+      setReportTo(dataYears[dataYears.length - 1]);
+    }
+  }, [rawRows]);
 
   const sortedScores = useMemo(() => {
     let rows = supplierScores.filter(
@@ -468,6 +635,23 @@ export default function ExecutiveDashboard() {
     });
     return rows;
   }, [supplierScores, scoreSort, scoreSortDir, scoreSearch]);
+
+  const scoreSearchSuggestions = useMemo(() => {
+    const names = supplierScores.map((s) => s.name);
+    if (!scoreSearchDraft) return names;
+    const q = scoreSearchDraft.toLowerCase();
+    return names.filter((n) => n.toLowerCase().includes(q));
+  }, [supplierScores, scoreSearchDraft]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (scoreSearchRef.current && !scoreSearchRef.current.contains(e.target as Node)) {
+        setShowScoreSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const toggleSort = (col) => {
     if (scoreSort === col) setScoreSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -486,6 +670,49 @@ export default function ExecutiveDashboard() {
       })),
     [supplierScores]
   );
+
+  // ── Category Pivot ────────────────────────────────────────
+  const categoryPivot = useMemo(() => {
+    const map: Record<string, any> = {};
+    filtered.forEach((r) => {
+      const cat = (r[COL.CATEGORY] || "Uncategorized").trim();
+      if (!map[cat]) map[cat] = { name: cat, total: 0, delivered: 0, incomplete: 0, undelivered: 0, onTime: 0, lateCount: 0, cancelled: 0, totalAmt: 0 };
+      const m = map[cat];
+      m.total++;
+      const status = r[COL.DELIVERY_STATUS] || "";
+      const timing = r[COL.DELIVERY_TIME] || "";
+      const isCancelled = r[COL.SUPPLIER_CANCELLED] === "TRUE" || r[COL.CANCELLATION] === "TRUE";
+      if (status === "Delivered") m.delivered++;
+      else if (status === "Incomplete Delivery") m.incomplete++;
+      else if (status === "Undelivered") m.undelivered++;
+      if (timing === "Early/On-Time") m.onTime++;
+      if (timing === "Late") m.lateCount++;
+      if (isCancelled) m.cancelled++;
+      m.totalAmt += Number(r[COL.TOTAL_AMOUNT]) || 0;
+    });
+    return Object.values(map).map((m) => ({
+      ...m,
+      deliveryPct: +(((m.delivered / m.total) * 100).toFixed(1)),
+      onTimePct: +(((m.onTime / m.total) * 100).toFixed(1)),
+    }));
+  }, [filtered]);
+
+  const [catSort, setCatSort] = useState("totalAmt");
+  const [catSortDir, setCatSortDir] = useState<"asc" | "desc">("desc");
+
+  const sortedCategoryPivot = useMemo(() => {
+    return [...categoryPivot].sort((a, b) => {
+      const v = catSortDir === "asc" ? 1 : -1;
+      return typeof a[catSort] === "string"
+        ? a[catSort].localeCompare(b[catSort]) * v
+        : (a[catSort] - b[catSort]) * v;
+    });
+  }, [categoryPivot, catSort, catSortDir]);
+
+  const toggleCatSort = (col: string) => {
+    if (catSort === col) setCatSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setCatSort(col); setCatSortDir("desc"); }
+  };
 
   // ── 3-Year Report Data ────────────────────────────────────
   const reportYearOptions = useMemo(() => {
@@ -574,6 +801,126 @@ export default function ExecutiveDashboard() {
       onTimeRate: Number(pct(onTime, total)),
     };
   }, [reportRows]);
+
+  // ── Report Category Pivot ─────────────────────────────────
+  const reportCategoryPivot = useMemo(() => {
+    const map: Record<string, any> = {};
+    reportRows.forEach((r) => {
+      const cat = (r[COL.CATEGORY] || "Uncategorized").trim();
+      if (!map[cat]) map[cat] = { name: cat, total: 0, delivered: 0, incomplete: 0, undelivered: 0, onTime: 0, lateCount: 0, cancelled: 0, totalAmt: 0 };
+      const m = map[cat];
+      m.total++;
+      const status = r[COL.DELIVERY_STATUS] || "";
+      const timing = r[COL.DELIVERY_TIME] || "";
+      const isCancelled = r[COL.SUPPLIER_CANCELLED] === "TRUE" || r[COL.CANCELLATION] === "TRUE";
+      if (status === "Delivered") m.delivered++;
+      else if (status === "Incomplete Delivery") m.incomplete++;
+      else if (status === "Undelivered") m.undelivered++;
+      if (timing === "Early/On-Time") m.onTime++;
+      if (timing === "Late") m.lateCount++;
+      if (isCancelled) m.cancelled++;
+      m.totalAmt += Number(r[COL.TOTAL_AMOUNT]) || 0;
+    });
+    return Object.values(map).map((m) => ({
+      ...m,
+      deliveryPct: +(((m.delivered / m.total) * 100).toFixed(1)),
+      onTimePct: +(((m.onTime / m.total) * 100).toFixed(1)),
+    }));
+  }, [reportRows]);
+
+  const [reportCatSort, setReportCatSort] = useState("totalAmt");
+  const [reportCatSortDir, setReportCatSortDir] = useState<"asc" | "desc">("desc");
+
+  const sortedReportCategoryPivot = useMemo(() => {
+    return [...reportCategoryPivot].sort((a, b) => {
+      const v = reportCatSortDir === "asc" ? 1 : -1;
+      return typeof a[reportCatSort] === "string"
+        ? a[reportCatSort].localeCompare(b[reportCatSort]) * v
+        : (a[reportCatSort] - b[reportCatSort]) * v;
+    });
+  }, [reportCategoryPivot, reportCatSort, reportCatSortDir]);
+
+  const toggleReportCatSort = (col: string) => {
+    if (reportCatSort === col) setReportCatSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setReportCatSort(col); setReportCatSortDir("desc"); }
+  };
+
+  // ── Report Supplier Scorecard ────────────────────────────
+  const reportSupplierScores = useMemo(() => {
+    const map: Record<string, any> = {};
+    reportRows.forEach((r) => {
+      const sup = r[COL.SUPPLIER]?.trim();
+      if (!sup) return;
+      if (!map[sup])
+        map[sup] = { name: sup, total: 0, delivered: 0, incomplete: 0, undelivered: 0, onTime: 0, cancelled: 0, lateCount: 0, totalAmt: 0 };
+      const m = map[sup];
+      m.total++;
+      const status = r[COL.DELIVERY_STATUS] || "";
+      const timing = r[COL.DELIVERY_TIME] || "";
+      const isCancelled = r[COL.SUPPLIER_CANCELLED] === "TRUE" || r[COL.CANCELLATION] === "TRUE";
+      if (status === "Delivered") m.delivered++;
+      else if (status === "Incomplete Delivery") m.incomplete++;
+      else if (status === "Undelivered") m.undelivered++;
+      if (timing === "Early/On-Time") m.onTime++;
+      if (timing === "Late") m.lateCount++;
+      if (isCancelled) m.cancelled++;
+      m.totalAmt += Number(r[COL.TOTAL_AMOUNT]) || 0;
+    });
+    return Object.values(map).map((m) => {
+      const cancelPts = m.cancelled === 0 ? 20 : m.cancelled <= 5 ? 15 : m.cancelled <= 10 ? 10 : m.cancelled <= 15 ? 5 : 0;
+      const latePts = m.lateCount === 0 ? 10 : m.lateCount <= 5 ? 5 : 0;
+      const score = Math.round(((cancelPts + latePts) / 30) * 100);
+      const deliveryRate = m.delivered / m.total;
+      const onTimeRate = m.onTime / m.total;
+      let grade, gradeColor;
+      if (score >= 90) { grade = "Excellent"; gradeColor = COLORS.success; }
+      else if (score >= 80) { grade = "Very Satisfactory"; gradeColor = COLORS.teal; }
+      else if (score >= 70) { grade = "Satisfactory"; gradeColor = COLORS.info; }
+      else if (score >= 60) { grade = "Unsatisfactory"; gradeColor = COLORS.warning; }
+      else { grade = "Poor"; gradeColor = COLORS.danger; }
+      return { ...m, deliveryPct: +(deliveryRate * 100).toFixed(1), onTimePct: +(onTimeRate * 100).toFixed(1), cancelPts, latePts, score, grade, gradeColor };
+    }).sort((a, b) => b.score - a.score);
+  }, [reportRows]);
+
+  const [reportScoreSort, setReportScoreSort] = useState("score");
+  const [reportScoreSortDir, setReportScoreSortDir] = useState<"asc" | "desc">("desc");
+  const [reportScoreSearch, setReportScoreSearch] = useState("");
+  const [reportScoreSearchDraft, setReportScoreSearchDraft] = useState("");
+  const [reportShowScoreSuggestions, setReportShowScoreSuggestions] = useState(false);
+  const reportScoreSearchRef = useRef<HTMLDivElement>(null);
+
+  const reportScoreSearchSuggestions = useMemo(() => {
+    const names = reportSupplierScores.map((s) => s.name);
+    if (!reportScoreSearchDraft) return names;
+    const q = reportScoreSearchDraft.toLowerCase();
+    return names.filter((n) => n.toLowerCase().includes(q));
+  }, [reportSupplierScores, reportScoreSearchDraft]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (reportScoreSearchRef.current && !reportScoreSearchRef.current.contains(e.target as Node))
+        setReportShowScoreSuggestions(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const reportSortedScores = useMemo(() => {
+    let rows = reportSupplierScores.filter(
+      (s) => !reportScoreSearch || s.name.toLowerCase().includes(reportScoreSearch.toLowerCase())
+    );
+    return [...rows].sort((a, b) => {
+      const v = reportScoreSortDir === "asc" ? 1 : -1;
+      return typeof a[reportScoreSort] === "string"
+        ? a[reportScoreSort].localeCompare(b[reportScoreSort]) * v
+        : (a[reportScoreSort] - b[reportScoreSort]) * v;
+    });
+  }, [reportSupplierScores, reportScoreSearch, reportScoreSort, reportScoreSortDir]);
+
+  const toggleReportSort = (col: string) => {
+    if (reportScoreSort === col) setReportScoreSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setReportScoreSort(col); setReportScoreSortDir("desc"); }
+  };
 
   // ── Styles ──────────────────────────────────────────────
   const pageStyle = {
@@ -668,7 +1015,7 @@ export default function ExecutiveDashboard() {
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
               }}
             >
-              {v === "dashboard" ? "Dashboard" : "3-Year Report"}
+              {v === "dashboard" ? "Dashboard" : "PO-Supplier Report"}
             </button>
           ))}
           <button
@@ -737,18 +1084,114 @@ export default function ExecutiveDashboard() {
                     <option key={s}>{s}</option>
                   ))}
                 </select>
-                <input
-                  style={inputStyle}
-                  placeholder="Search item, supplier, PO #…"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-                {(yearFilter !== "All" || statusFilter !== "All" || searchText) && (
+                {/* Supplier autocomplete */}
+                <div ref={supplierRef} style={{ position: "relative" }}>
+                  <input
+                    style={{ ...inputStyle, minWidth: 200, paddingRight: supplierFilter ? 28 : 12 }}
+                    placeholder="Filter by supplier…"
+                    value={supplierFilter}
+                    onChange={(e) => {
+                      setSupplierFilter(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                  />
+                  {supplierFilter && (
+                    <span
+                      onClick={() => { setSupplierFilter(""); setShowSuggestions(false); }}
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        cursor: "pointer",
+                        color: "#9ca3af",
+                        fontSize: 14,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✕
+                    </span>
+                  )}
+                  {showSuggestions && supplierSuggestions.length > 0 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 4px)",
+                        left: 0,
+                        zIndex: 100,
+                        background: "#fff",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 8,
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                        maxHeight: 220,
+                        overflowY: "auto",
+                        minWidth: 260,
+                      }}
+                    >
+                      {supplierSuggestions.map((s) => (
+                        <div
+                          key={s}
+                          onMouseDown={() => {
+                            setSupplierFilter(s);
+                            setShowSuggestions(false);
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            fontSize: 13,
+                            cursor: "pointer",
+                            background: supplierFilter === s ? "#f0f4ff" : "transparent",
+                            color: supplierFilter === s ? "#4f46e5" : "#374151",
+                            fontWeight: supplierFilter === s ? 600 : 400,
+                            borderBottom: "1px solid #f3f4f6",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background =
+                              supplierFilter === s ? "#f0f4ff" : "transparent")
+                          }
+                        >
+                          {s}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <input
+                    style={inputStyle}
+                    placeholder="Search item, PO #…"
+                    value={searchDraft}
+                    onChange={(e) => setSearchDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setSearchText(searchDraft);
+                    }}
+                  />
+                  <button
+                    onClick={() => setSearchText(searchDraft)}
+                    style={{
+                      ...selectStyle,
+                      background: COLORS.primary,
+                      color: "#fff",
+                      border: "none",
+                      fontWeight: 600,
+                      padding: "6px 14px",
+                    }}
+                  >
+                    Search
+                  </button>
+                </div>
+                {(yearFilter !== "All" || statusFilter !== "All" || supplierFilter || searchText) && (
                   <button
                     onClick={() => {
                       setYearFilter("All");
                       setStatusFilter("All");
+                      setSupplierFilter("");
                       setSearchText("");
+                      setSearchDraft("");
                     }}
                     style={{
                       ...selectStyle,
@@ -765,6 +1208,27 @@ export default function ExecutiveDashboard() {
                   Showing <strong>{totalItems}</strong> of <strong>{rawRows.length}</strong> items
                 </span>
               </div>
+
+              {/* ── Active Filter Pills ── */}
+              {(yearFilter !== "All" || statusFilter !== "All" || supplierFilter || searchText) && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: "10px 16px",
+                    background: "#fff",
+                    borderRadius: 8,
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                    border: "1px solid #e0e7ff",
+                  }}
+                >
+                  <ActiveFilterPills
+                    year={yearFilter}
+                    status={statusFilter}
+                    supplier={supplierFilter}
+                    search={searchText}
+                  />
+                </div>
+              )}
 
               {/* ── KPI Cards ── */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
@@ -837,7 +1301,7 @@ export default function ExecutiveDashboard() {
                         iconType="circle"
                         formatter={(val, entry) => (
                           <span style={{ fontSize: 12, color: "#374151" }}>
-                            {val} ({entry.payload.value})
+                            {val} ({((entry?.payload as any)?.value ?? 0).toLocaleString()})
                           </span>
                         )}
                       />
@@ -960,7 +1424,7 @@ export default function ExecutiveDashboard() {
                       }}
                     >
                       <span style={badgeStyle(color)}>{status}</span>
-                      <p style={{ margin: "8px 0 2px", fontSize: 22, fontWeight: 700 }}>{count}</p>
+                      <p style={{ margin: "8px 0 2px", fontSize: 22, fontWeight: 700 }}>{count.toLocaleString()}</p>
                       <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
                         {fmt(amt, "₱")} total
                       </p>
@@ -1005,16 +1469,112 @@ export default function ExecutiveDashboard() {
                     >
                       Supplier Scorecard
                     </h3>
-                    {/* <p style={{ margin: "3px 0 0", fontSize: 12, color: "#64748b" }}>
-                  Score = Delivery 40% + On-Time 30% + No-Cancel 20% + Low-Delay 10%
-                </p> */}
+                    <div style={{ marginTop: 6 }}>
+                      <ActiveFilterPills
+                        year={yearFilter}
+                        status={statusFilter}
+                        supplier={supplierFilter}
+                        search={searchText}
+                      />
+                    </div>
                   </div>
-                  <input
-                    style={{ ...inputStyle, minWidth: 200 }}
-                    placeholder="Search supplier…"
-                    value={scoreSearch}
-                    onChange={(e) => setScoreSearch(e.target.value)}
-                  />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <button
+                      onClick={() => setShowRubric((v) => !v)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 7,
+                        border: showRubric ? "none" : "1px solid #e2e8f0",
+                        background: showRubric ? "#0f172a" : "#fff",
+                        color: showRubric ? "#fff" : "#374151",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {showRubric ? "Hide Rubric" : "Scoring Rubric"}
+                    </button>
+                  <div ref={scoreSearchRef} style={{ position: "relative" }}>
+                    <input
+                      style={{ ...inputStyle, minWidth: 200, paddingRight: scoreSearchDraft ? 28 : 12 }}
+                      placeholder="Search supplier…"
+                      value={scoreSearchDraft}
+                      onChange={(e) => { setScoreSearchDraft(e.target.value); setShowScoreSuggestions(true); }}
+                      onFocus={() => setShowScoreSuggestions(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          setScoreSearch(scoreSearchDraft);
+                          setShowScoreSuggestions(false);
+                        }
+                      }}
+                    />
+                    {scoreSearchDraft && (
+                      <span
+                        onClick={() => { setScoreSearchDraft(""); setScoreSearch(""); setShowScoreSuggestions(false); }}
+                        style={{
+                          position: "absolute",
+                          right: 8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          cursor: "pointer",
+                          color: "#9ca3af",
+                          fontSize: 14,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ✕
+                      </span>
+                    )}
+                    {showScoreSuggestions && scoreSearchSuggestions.length > 0 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 4px)",
+                          right: 0,
+                          zIndex: 100,
+                          background: "#fff",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 8,
+                          boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                          maxHeight: 220,
+                          overflowY: "auto",
+                          minWidth: 260,
+                        }}
+                      >
+                        {scoreSearchSuggestions.map((name) => (
+                          <div
+                            key={name}
+                            onMouseDown={() => {
+                              setScoreSearchDraft(name);
+                              setScoreSearch(name);
+                              setShowScoreSuggestions(false);
+                            }}
+                            style={{
+                              padding: "8px 12px",
+                              fontSize: 13,
+                              cursor: "pointer",
+                              background: scoreSearch === name ? "#f0f4ff" : "transparent",
+                              color: scoreSearch === name ? "#4f46e5" : "#374151",
+                              fontWeight: scoreSearch === name ? 600 : 400,
+                              borderBottom: "1px solid #f3f4f6",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background =
+                                scoreSearch === name ? "#f0f4ff" : "transparent")
+                            }
+                          >
+                            {name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  </div>{/* end flex row: button + search */}
                 </div>
 
                 {/* Score legend */}
@@ -1028,29 +1588,63 @@ export default function ExecutiveDashboard() {
                   }}
                 >
                   {[
-                    ["A", "80–100", COLORS.success],
-                    ["B", "60–79", COLORS.teal],
-                    ["C", "40–59", COLORS.warning],
-                    ["D", "0–39", COLORS.danger],
+                    ["Excellent", "90–100", COLORS.success],
+                    ["Very Satisfactory", "80–89", COLORS.teal],
+                    ["Satisfactory", "70–79", COLORS.info],
+                    ["Unsatisfactory", "60–69", COLORS.warning],
+                    ["Poor", "0–59", COLORS.danger],
                   ].map(([g, range, c]) => (
                     <span
                       key={g}
                       style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}
                     >
-                      <span
-                        style={{
-                          ...badgeStyle(c),
-                          fontSize: 13,
-                          fontWeight: 800,
-                          padding: "1px 9px",
-                        }}
-                      >
+                      <span style={{ ...badgeStyle(c), fontWeight: 700, padding: "1px 9px" }}>
                         {g}
                       </span>
                       <span style={{ color: "#64748b" }}>{range} pts</span>
                     </span>
                   ))}
                 </div>
+
+                {/* Rubric panel */}
+                {showRubric && (
+                  <div style={{ padding: "14px 20px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
+                    <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Scoring Rubric — Score = (Cancellations pts + Late Deliveries pts) ÷ 30 × 100
+                    </p>
+                    <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
+                      <thead>
+                        <tr style={{ background: "#e2e8f0" }}>
+                          {["Metric", "Max Pts", "0", "1–5", "6–10", "11–15", "≥16"].map((h) => (
+                            <th key={h} style={{ padding: "6px 10px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "6px 10px", fontWeight: 600 }}>Cancellations</td>
+                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, color: COLORS.primary }}>20</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.success, fontWeight: 600 }}>20 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.teal, fontWeight: 600 }}>15 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.warning, fontWeight: 600 }}>10 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.orange, fontWeight: 600 }}>5 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.danger, fontWeight: 600 }}>0 pts</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: "6px 10px", fontWeight: 600 }}>Late Deliveries</td>
+                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, color: COLORS.primary }}>10</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.success, fontWeight: 600 }}>10 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.warning, fontWeight: 600 }}>5 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.danger, fontWeight: 600 }}>0 pts</td>
+                          <td colSpan={2} style={{ padding: "6px 10px", color: "#9ca3af", fontSize: 11 }}>— (≥6 applies)</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p style={{ margin: "8px 0 0", fontSize: 11, color: "#94a3b8" }}>
+                      * Change of Brands, Extension of Delivery, and Expiry within 18 months are not scored — no corresponding data columns available.
+                    </p>
+                  </div>
+                )}
 
                 {/* Score bar chart */}
                 {/* <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #f1f5f9" }}>
@@ -1089,7 +1683,7 @@ export default function ExecutiveDashboard() {
                 <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
-                      <tr style={{ background: "#f8fafc", position: "sticky", top: 0 }}>
+                      <tr style={{ background: "#1e293b", position: "sticky", top: 0 }}>
                         {[
                           ["name", "Supplier"],
                           ["total", "Total Items"],
@@ -1098,7 +1692,7 @@ export default function ExecutiveDashboard() {
                           ["undelivered", "Undelivered"],
                           ["onTimePct", "On-Time %"],
                           ["deliveryPct", "Delivery %"],
-                          ["avgDelay", "Avg Delay (days)"],
+                          ["lateCount", "Late Deliveries"],
                           ["cancelled", "Cancelled"],
                           ["totalAmt", "Total Amount"],
                           ["score", "Score"],
@@ -1110,8 +1704,8 @@ export default function ExecutiveDashboard() {
                             style={{
                               textAlign: col === "name" ? "left" : "right",
                               padding: "10px 12px",
-                              borderBottom: "2px solid #e2e8f0",
-                              color: scoreSort === col ? "#4f46e5" : "#475569",
+                              borderBottom: "2px solid #334155",
+                              color: scoreSort === col ? "#a5b4fc" : "#e2e8f0",
                               fontWeight: 700,
                               whiteSpace: "nowrap",
                               cursor: "pointer",
@@ -1145,7 +1739,7 @@ export default function ExecutiveDashboard() {
                             {s.name}
                           </td>
                           <td style={{ padding: "9px 12px", textAlign: "right", color: "#374151" }}>
-                            {s.total}
+                            {s.total.toLocaleString()}
                           </td>
                           <td
                             style={{
@@ -1155,7 +1749,7 @@ export default function ExecutiveDashboard() {
                               fontWeight: 600,
                             }}
                           >
-                            {s.delivered}
+                            {s.delivered.toLocaleString()}
                           </td>
                           <td
                             style={{
@@ -1165,7 +1759,7 @@ export default function ExecutiveDashboard() {
                               fontWeight: 600,
                             }}
                           >
-                            {s.incomplete}
+                            {s.incomplete.toLocaleString()}
                           </td>
                           <td
                             style={{
@@ -1175,7 +1769,7 @@ export default function ExecutiveDashboard() {
                               fontWeight: 600,
                             }}
                           >
-                            {s.undelivered}
+                            {s.undelivered.toLocaleString()}
                           </td>
                           <td style={{ padding: "9px 12px", textAlign: "right" }}>
                             <span
@@ -1199,19 +1793,8 @@ export default function ExecutiveDashboard() {
                               {s.deliveryPct}%
                             </span>
                           </td>
-                          <td
-                            style={{
-                              padding: "9px 12px",
-                              textAlign: "right",
-                              color:
-                                s.avgDelay > 100
-                                  ? COLORS.danger
-                                  : s.avgDelay > 30
-                                    ? COLORS.warning
-                                    : COLORS.success,
-                            }}
-                          >
-                            {s.avgDelay > 0 ? `+${s.avgDelay}d` : "—"}
+                          <td style={{ padding: "9px 12px", textAlign: "right", color: s.lateCount >= 6 ? COLORS.danger : s.lateCount >= 1 ? COLORS.warning : COLORS.success }}>
+                            {s.lateCount > 0 ? s.lateCount : "—"}
                           </td>
                           <td
                             style={{
@@ -1220,7 +1803,7 @@ export default function ExecutiveDashboard() {
                               color: s.cancelled > 0 ? COLORS.danger : "#9ca3af",
                             }}
                           >
-                            {s.cancelled || "—"}
+                            {s.cancelled ? s.cancelled.toLocaleString() : "—"}
                           </td>
                           <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 600 }}>
                             ₱{s.totalAmt.toLocaleString()}
@@ -1258,14 +1841,7 @@ export default function ExecutiveDashboard() {
                             </div>
                           </td>
                           <td style={{ padding: "9px 12px", textAlign: "right" }}>
-                            <span
-                              style={{
-                                ...badgeStyle(s.gradeColor),
-                                fontSize: 14,
-                                fontWeight: 800,
-                                padding: "2px 10px",
-                              }}
-                            >
+                            <span style={{ ...badgeStyle(s.gradeColor), fontWeight: 700, whiteSpace: "nowrap" }}>
                               {s.grade}
                             </span>
                           </td>
@@ -1274,7 +1850,28 @@ export default function ExecutiveDashboard() {
                     </tbody>
                   </table>
                 </div>
+                <div style={{ padding: "8px 16px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", fontSize: 12, color: "#64748b" }}>
+                  Showing <strong>{sortedScores.length}</strong> supplier{sortedScores.length !== 1 ? "s" : ""}
+                  {scoreSearch && <span style={{ marginLeft: 6, color: "#4f46e5" }}>(filtered)</span>}
+                </div>
               </div>
+
+              {/* ── Category Pivot ── */}
+              <div style={{ marginTop: 28, background: "#fff", borderRadius: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+                <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Category Report
+                    </h3>
+                    <div style={{ marginTop: 6 }}>
+                      <ActiveFilterPills year={yearFilter} status={statusFilter} supplier={supplierFilter} search={searchText} />
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 12, color: "#64748b" }}>Click column headers to sort</span>
+                </div>
+                <CategoryPivotTable rows={sortedCategoryPivot} sortCol={catSort} sortDir={catSortDir} onSort={toggleCatSort} />
+              </div>
+
             </>
           )}
 
@@ -1311,7 +1908,7 @@ export default function ExecutiveDashboard() {
                       letterSpacing: "0.05em",
                     }}
                   >
-                    3-Year Procurement Report
+                    PO-Supplier Report
                   </h3>
                   <p style={{ margin: "3px 0 0", fontSize: 12, color: "#94a3b8" }}>
                     {reportFrom} – {reportTo} &nbsp;·&nbsp; {reportRows.length.toLocaleString()}{" "}
@@ -1481,7 +2078,7 @@ export default function ExecutiveDashboard() {
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: "#f8fafc" }}>
+                    <tr style={{ background: "#1e293b" }}>
                       {[
                         "Year",
                         "Total Items",
@@ -1498,8 +2095,8 @@ export default function ExecutiveDashboard() {
                           key={h}
                           style={{
                             padding: "10px 14px",
-                            borderBottom: "2px solid #e2e8f0",
-                            color: "#475569",
+                            borderBottom: "2px solid #334155",
+                            color: "#e2e8f0",
                             fontWeight: 700,
                             whiteSpace: "nowrap",
                             textAlign: h === "Year" ? "left" : "right",
@@ -1543,7 +2140,7 @@ export default function ExecutiveDashboard() {
                             fontWeight: 600,
                           }}
                         >
-                          {s.delivered || "—"}
+                          {s.delivered ? s.delivered.toLocaleString() : "—"}
                         </td>
                         <td
                           style={{
@@ -1553,7 +2150,7 @@ export default function ExecutiveDashboard() {
                             fontWeight: 600,
                           }}
                         >
-                          {s.incomplete || "—"}
+                          {s.incomplete ? s.incomplete.toLocaleString() : "—"}
                         </td>
                         <td
                           style={{
@@ -1563,7 +2160,7 @@ export default function ExecutiveDashboard() {
                             fontWeight: 600,
                           }}
                         >
-                          {s.undelivered || "—"}
+                          {s.undelivered ? s.undelivered.toLocaleString() : "—"}
                         </td>
                         <td style={{ padding: "11px 14px", textAlign: "right" }}>
                           <span
@@ -1586,21 +2183,10 @@ export default function ExecutiveDashboard() {
                             color: s.cancelled > 0 ? COLORS.danger : "#9ca3af",
                           }}
                         >
-                          {s.cancelled || "—"}
+                          {s.cancelled ? s.cancelled.toLocaleString() : "—"}
                         </td>
-                        <td
-                          style={{
-                            padding: "11px 14px",
-                            textAlign: "right",
-                            color:
-                              s.avgDelay > 100
-                                ? COLORS.danger
-                                : s.avgDelay > 30
-                                  ? COLORS.warning
-                                  : COLORS.success,
-                          }}
-                        >
-                          {s.avgDelay > 0 ? `+${s.avgDelay}d` : "—"}
+                        <td style={{ padding: "11px 14px", textAlign: "right", color: s.lateCount >= 6 ? COLORS.danger : s.lateCount >= 1 ? COLORS.warning : COLORS.success }}>
+                          {s.lateCount > 0 ? s.lateCount : "—"}
                         </td>
                       </tr>
                     ))}
@@ -1632,7 +2218,7 @@ export default function ExecutiveDashboard() {
                           fontWeight: 700,
                         }}
                       >
-                        {reportTotals.delivered}
+                        {reportTotals.delivered.toLocaleString()}
                       </td>
                       <td colSpan={2} />
                       <td style={{ padding: "11px 14px", textAlign: "right" }}>
@@ -1657,7 +2243,268 @@ export default function ExecutiveDashboard() {
                     </tr>
                   </tbody>
                 </table>
+                <div style={{ padding: "8px 16px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", fontSize: 12, color: "#64748b" }}>
+                  Showing <strong>{reportYearStats.length}</strong> year{reportYearStats.length !== 1 ? "s" : ""} · {reportFrom}–{reportTo}
+                </div>
               </div>
+
+              {/* ── Report Supplier Scorecard ── */}
+              <div style={{ borderTop: "1px solid #f1f5f9" }}>
+                {/* Header */}
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    borderBottom: "1px solid #f1f5f9",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 10,
+                  }}
+                >
+                  <div>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "#374151",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      Supplier Scorecard
+                    </h3>
+                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "#64748b" }}>
+                      {reportFrom}–{reportTo} · {reportSortedScores.length} suppliers
+                    </p>
+                  </div>
+                  {/* Search + Rubric toggle */}
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <button
+                      onClick={() => setShowReportRubric((v) => !v)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 7,
+                        border: showReportRubric ? "none" : "1px solid #e2e8f0",
+                        background: showReportRubric ? "#0f172a" : "#fff",
+                        color: showReportRubric ? "#fff" : "#374151",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {showReportRubric ? "Hide Rubric" : "Scoring Rubric"}
+                    </button>
+                  <div ref={reportScoreSearchRef} style={{ position: "relative" }}>
+                    <input
+                      style={{ ...inputStyle, minWidth: 200, paddingRight: reportScoreSearchDraft ? 28 : 12 }}
+                      placeholder="Search supplier…"
+                      value={reportScoreSearchDraft}
+                      onChange={(e) => { setReportScoreSearchDraft(e.target.value); setReportShowScoreSuggestions(true); }}
+                      onFocus={() => setReportShowScoreSuggestions(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { setReportScoreSearch(reportScoreSearchDraft); setReportShowScoreSuggestions(false); }
+                      }}
+                    />
+                    {reportScoreSearchDraft && (
+                      <span
+                        onClick={() => { setReportScoreSearchDraft(""); setReportScoreSearch(""); setReportShowScoreSuggestions(false); }}
+                        style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#9ca3af", fontSize: 14, lineHeight: 1 }}
+                      >
+                        ✕
+                      </span>
+                    )}
+                    {reportShowScoreSuggestions && reportScoreSearchSuggestions.length > 0 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 4px)",
+                          right: 0,
+                          zIndex: 100,
+                          background: "#fff",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 8,
+                          boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                          maxHeight: 220,
+                          overflowY: "auto",
+                          minWidth: 260,
+                        }}
+                      >
+                        {reportScoreSearchSuggestions.map((name) => (
+                          <div
+                            key={name}
+                            onMouseDown={() => { setReportScoreSearchDraft(name); setReportScoreSearch(name); setReportShowScoreSuggestions(false); }}
+                            style={{
+                              padding: "8px 12px",
+                              fontSize: 13,
+                              cursor: "pointer",
+                              background: reportScoreSearch === name ? "#f0f4ff" : "transparent",
+                              color: reportScoreSearch === name ? "#4f46e5" : "#374151",
+                              fontWeight: reportScoreSearch === name ? 600 : 400,
+                              borderBottom: "1px solid #f3f4f6",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = reportScoreSearch === name ? "#f0f4ff" : "transparent")}
+                          >
+                            {name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  </div>{/* end flex row: button + search */}
+                </div>
+
+                {/* Grade legend */}
+                <div style={{ display: "flex", gap: 12, padding: "10px 20px", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
+                  {([["Excellent", "90–100", COLORS.success], ["Very Satisfactory", "80–89", COLORS.teal], ["Satisfactory", "70–79", COLORS.info], ["Unsatisfactory", "60–69", COLORS.warning], ["Poor", "0–59", COLORS.danger]] as const).map(([g, range, c]) => (
+                    <span key={g} style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ ...badgeStyle(c), fontSize: 13, fontWeight: 800, padding: "1px 9px" }}>{g}</span>
+                      <span style={{ color: "#64748b" }}>{range} pts</span>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Rubric panel */}
+                {showReportRubric && (
+                  <div style={{ padding: "14px 20px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
+                    <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Scoring Rubric — Score = (Cancellations pts + Late Deliveries pts) ÷ 30 × 100
+                    </p>
+                    <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
+                      <thead>
+                        <tr style={{ background: "#e2e8f0" }}>
+                          {["Metric", "Max Pts", "0", "1–5", "6–10", "11–15", "≥16"].map((h) => (
+                            <th key={h} style={{ padding: "6px 10px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "6px 10px", fontWeight: 600 }}>Cancellations</td>
+                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, color: COLORS.primary }}>20</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.success, fontWeight: 600 }}>20 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.teal, fontWeight: 600 }}>15 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.warning, fontWeight: 600 }}>10 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.orange, fontWeight: 600 }}>5 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.danger, fontWeight: 600 }}>0 pts</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: "6px 10px", fontWeight: 600 }}>Late Deliveries</td>
+                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, color: COLORS.primary }}>10</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.success, fontWeight: 600 }}>10 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.warning, fontWeight: 600 }}>5 pts</td>
+                          <td style={{ padding: "6px 10px", color: COLORS.danger, fontWeight: 600 }}>0 pts</td>
+                          <td colSpan={2} style={{ padding: "6px 10px", color: "#9ca3af", fontSize: 11 }}>— (≥6 applies)</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p style={{ margin: "8px 0 0", fontSize: 11, color: "#94a3b8" }}>
+                      * Change of Brands, Extension of Delivery, and Expiry within 18 months are not scored — no corresponding data columns available.
+                    </p>
+                  </div>
+                )}
+
+                {/* Table */}
+                <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: "#1e293b", position: "sticky", top: 0 }}>
+                        {([
+                          ["name", "Supplier"],
+                          ["total", "Total Items"],
+                          ["delivered", "Delivered"],
+                          ["incomplete", "Incomplete"],
+                          ["undelivered", "Undelivered"],
+                          ["onTimePct", "On-Time %"],
+                          ["deliveryPct", "Delivery %"],
+                          ["lateCount", "Late Deliveries"],
+                          ["cancelled", "Cancelled"],
+                          ["totalAmt", "Total Amount"],
+                          ["score", "Score"],
+                          ["grade", "Grade"],
+                        ] as [string, string][]).map(([col, label]) => (
+                          <th
+                            key={col}
+                            onClick={() => toggleReportSort(col)}
+                            style={{
+                              textAlign: col === "name" ? "left" : "right",
+                              padding: "10px 12px",
+                              borderBottom: "2px solid #334155",
+                              color: reportScoreSort === col ? "#a5b4fc" : "#e2e8f0",
+                              fontWeight: 700,
+                              whiteSpace: "nowrap",
+                              cursor: "pointer",
+                              userSelect: "none",
+                            }}
+                          >
+                            {label} {reportScoreSort === col ? (reportScoreSortDir === "asc" ? "↑" : "↓") : ""}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportSortedScores.map((s, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? "#fafafa" : "#fff", borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "9px 12px", fontWeight: 600, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</td>
+                          <td style={{ padding: "9px 12px", textAlign: "right" }}>{s.total}</td>
+                          <td style={{ padding: "9px 12px", textAlign: "right", color: COLORS.success, fontWeight: 600 }}>{s.delivered}</td>
+                          <td style={{ padding: "9px 12px", textAlign: "right", color: COLORS.warning, fontWeight: 600 }}>{s.incomplete}</td>
+                          <td style={{ padding: "9px 12px", textAlign: "right", color: COLORS.danger, fontWeight: 600 }}>{s.undelivered}</td>
+                          <td style={{ padding: "9px 12px", textAlign: "right" }}>
+                            <span style={badgeStyle(s.onTimePct >= 50 ? COLORS.success : COLORS.warning)}>{s.onTimePct}%</span>
+                          </td>
+                          <td style={{ padding: "9px 12px", textAlign: "right" }}>
+                            <span style={badgeStyle(s.deliveryPct >= 80 ? COLORS.success : s.deliveryPct >= 50 ? COLORS.warning : COLORS.danger)}>{s.deliveryPct}%</span>
+                          </td>
+                          <td style={{ padding: "9px 12px", textAlign: "right", color: s.lateCount >= 6 ? COLORS.danger : s.lateCount >= 1 ? COLORS.warning : COLORS.success }}>
+                            {s.lateCount > 0 ? s.lateCount : "—"}
+                          </td>
+                          <td style={{ padding: "9px 12px", textAlign: "right", color: s.cancelled > 0 ? COLORS.danger : "#9ca3af" }}>{s.cancelled || "—"}</td>
+                          <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 600 }}>₱{s.totalAmt.toLocaleString()}</td>
+                          <td style={{ padding: "9px 12px", textAlign: "right" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+                              <div style={{ width: 48, height: 6, borderRadius: 3, background: "#e5e7eb", overflow: "hidden" }}>
+                                <div style={{ width: `${s.score}%`, height: "100%", background: s.gradeColor, borderRadius: 3 }} />
+                              </div>
+                              <span style={{ fontWeight: 700, color: s.gradeColor }}>{s.score}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "9px 12px", textAlign: "right" }}>
+                            <span style={{ ...badgeStyle(s.gradeColor), fontWeight: 700, whiteSpace: "nowrap" }}>{s.grade}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ padding: "8px 16px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", fontSize: 12, color: "#64748b" }}>
+                  Showing <strong>{reportSortedScores.length}</strong> supplier{reportSortedScores.length !== 1 ? "s" : ""}
+                  {reportScoreSearch && <span style={{ marginLeft: 6, color: "#4f46e5" }}>(filtered)</span>}
+                </div>
+              </div>
+
+              {/* ── Report Category Pivot ── */}
+              <div style={{ borderTop: "1px solid #f1f5f9" }}>
+                <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Category Report
+                    </h3>
+                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "#64748b" }}>
+                      {reportFrom}–{reportTo} · {sortedReportCategoryPivot.length} categories
+                    </p>
+                  </div>
+                  <span style={{ fontSize: 12, color: "#64748b" }}>Click column headers to sort</span>
+                </div>
+                <CategoryPivotTable rows={sortedReportCategoryPivot} sortCol={reportCatSort} sortDir={reportCatSortDir} onSort={toggleReportCatSort} />
+              </div>
+
             </div>
           )}
 
@@ -1688,12 +2535,20 @@ export default function ExecutiveDashboard() {
                   >
                     Purchase Order Details
                   </h3>
+                  <div style={{ marginTop: 8 }}>
+                    <ActiveFilterPills
+                      year={yearFilter}
+                      status={statusFilter}
+                      supplier={supplierFilter}
+                      search={searchText}
+                    />
+                  </div>
                 </div>
 
                 <div style={{ overflowX: "auto", maxHeight: 400, overflowY: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
-                      <tr style={{ background: "#f8fafc", position: "sticky", top: 0 }}>
+                      <tr style={{ background: "#1e293b", position: "sticky", top: 0 }}>
                         {[
                           "PO Year",
                           "PO Number",
@@ -1712,8 +2567,8 @@ export default function ExecutiveDashboard() {
                             style={{
                               textAlign: "left",
                               padding: "10px 12px",
-                              borderBottom: "2px solid #e2e8f0",
-                              color: "#475569",
+                              borderBottom: "2px solid #334155",
+                              color: "#e2e8f0",
                               fontWeight: 700,
                               whiteSpace: "nowrap",
                             }}
@@ -1724,7 +2579,7 @@ export default function ExecutiveDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.slice(0, 200).map((row, i) => {
+                      {filtered.map((row, i) => {
                         const status = row[COL.DELIVERY_STATUS] || "";
                         const timing = row[COL.DELIVERY_TIME] || "";
                         const statusClr = STATUS_COLORS[status] || "#9ca3af";
@@ -1759,7 +2614,7 @@ export default function ExecutiveDashboard() {
                               style={{
                                 padding: "8px 12px",
                                 whiteSpace: "nowrap",
-                                maxWidth: 160,
+                                maxWidth: 100,
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                               }}
@@ -1802,7 +2657,7 @@ export default function ExecutiveDashboard() {
                                 textAlign: "right",
                               }}
                             >
-                              {row[COL.QTY_ORDER]}
+                              {Number(row[COL.QTY_ORDER]).toLocaleString()}
                             </td>
                             <td
                               style={{
@@ -1811,7 +2666,7 @@ export default function ExecutiveDashboard() {
                                 textAlign: "right",
                               }}
                             >
-                              {row[COL.QTY_DELIVERED] || "—"}
+                              {row[COL.QTY_DELIVERED] ? Number(row[COL.QTY_DELIVERED]).toLocaleString() : "—"}
                             </td>
                             <td
                               style={{
@@ -1834,10 +2689,11 @@ export default function ExecutiveDashboard() {
                       })}
                     </tbody>
                   </table>
-                  {filtered.length > 200 && (
-                    <p style={{ textAlign: "center", padding: 12, color: "#64748b", fontSize: 12 }}>
-                      Showing 200 of {filtered.length} rows — use filters to narrow results.
-                    </p>
+                </div>
+                <div style={{ padding: "8px 16px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", fontSize: 12, color: "#64748b" }}>
+                  Showing <strong>{filtered.length.toLocaleString()}</strong> record{filtered.length !== 1 ? "s" : ""}
+                  {filtered.length < rawRows.length && (
+                    <span style={{ marginLeft: 6, color: "#4f46e5" }}>({rawRows.length.toLocaleString()} total — filtered)</span>
                   )}
                 </div>
               </div>
